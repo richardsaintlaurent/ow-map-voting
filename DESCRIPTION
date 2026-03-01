@@ -21,4 +21,5 @@ Imports:
     DT,
     paletteer,
     ggthemes,
-    pkgload
+    pkgload,
+    ggrepel

@@ -5,7 +5,7 @@ library(stringr)
 library(tidyr)
 library(forcats)
 library(ggh4x)
-#require(ggrepel)
+library(ggrepel)
 library(shinydashboard)
 library(DT)
 
@@ -385,6 +385,91 @@ ranking_display <- {
     mutate(score = round(score,2))
 }
 
+#O vs score data
+data_oo <- merge(appearance, data_tiers, by=c('map','O')) %>%
+  dplyr::filter(O >= 10 & map %in% c('Hanaoka','Throne of Anubis') == F) 
+oo_min <- min(data_oo$O) - (min(data_oo$O) %% 5)
+oo_max <- max(data_oo$O) + 5 - (max(data_oo$O) %% 5)
+plot_oo <- {
+  data_oo %>%
+    ggplot(., aes(x = (score), y = (O), label = map)) +
+    scale_color_manual(values=tier_colors, name = 'Tier') +
+    geom_line(stat='smooth', method='lm', size = 1.75, color = 'gray') +
+    geom_label_repel(label.size = NA, seed = 123, alpha = 0.75, label.padding=0.1, min.segment.length = 0) +
+    geom_point(size = 2, aes(color = tier)) +
+    scale_x_continuous(limits = c(-1,1), breaks = c(-1.00,-0.75,-0.50,-0.25,0.00,0.25,0.50,0.75,1.00)) +
+    scale_y_continuous(limits = c(oo_min, oo_max), breaks = seq(oo_min, oo_max, 5)) +
+    theme_minimal(base_size = 14) +
+    labs(x = 'Score', y = 'Number of Occurrences') +
+    guides(x = guide_axis(cap = "both"), y = guide_axis(cap = "both"), fill = guide_legend(reverse = TRUE)) +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(face='bold', hjust = 0.5),
+      plot.title = element_text(hjust = 0.5, face = "bold"), #Bold title, centered
+      plot.subtitle = element_text(hjust = 0.5), #centered subtitle
+      panel.grid.major = element_blank(), #Remove major gridmarks
+      panel.grid.minor = element_blank(), #Remove minor gridmarks
+      strip.background = element_blank(), #Remove facet label background
+      strip.text.x = element_text(face = "bold"), #Facet_grid x label bold
+      strip.text.y = element_blank(), #Remove facet_grid y label
+      axis.line.x = element_line(), axis.ticks.x = element_line(),
+      axis.line.y = element_line(), axis.ticks.y = element_line()
+    )
+}
+
+#winrate
+data_wr <- {
+  mapvote %>%
+    dplyr::select(ID, map, MATCH) %>%
+    unique() %>%
+    mutate(
+      MATCH = case_when(
+        MATCH == 'WIN' ~ 1,
+        MATCH == 'LOSS' ~ 0,
+        MATCH == 'DRAW' ~ 0.5,
+        MATCH == 'CANCELLED' ~ NA,
+        TRUE ~ NA
+      )
+    ) %>%
+    na.omit() %>%
+    ungroup() %>% group_by(map) %>%
+    summarize(
+      WR = sum(MATCH)/n(),
+      N = n()
+    ) %>%
+    dplyr::filter(N>=10) %>%
+    dplyr::arrange(desc(WR))
+}
+plot_wr <- {
+  data_wr %>%
+    merge(data_oo, by='map') %>%
+    mutate(
+      map = factor(map, levels = rev(data_wr$map)),
+      tier = factor(tier, levels = rev(c('S','A','B','C','D','E','F')))
+    ) %>%
+    ggplot(., aes(x = WR, y = map, label = N, fill = tier)) +
+    scale_fill_manual(values=tier_colors, name = 'Tier') +
+    geom_bar(stat='identity') +
+    geom_vline(xintercept=0.5, linetype = 'longdash', linewidth = 1.25, color = 'black', alpha = 0.5) +
+    #geom_text(aes(label = N), stat = "identity", vjust = 0.5, hjust = -0.5) +
+    scale_x_continuous(labels = scales::percent, limits = c(0,1), expand = c(0.005,0.005)) +
+    theme_minimal(base_size = 14) +
+    labs(x = 'Winrate', y = 'Maps') +
+    guides(x = guide_axis(cap = "both"), y = guide_axis(cap = "both"), fill = guide_legend(reverse = TRUE)) +
+    theme(
+      legend.position = "right",
+      legend.title = element_text(face='bold', hjust = 0.5),
+      plot.title = element_text(hjust = 0.5, face = "bold"), #Bold title, centered
+      plot.subtitle = element_text(hjust = 0.5), #centered subtitle
+      panel.grid.major = element_blank(), #Remove major gridmarks
+      panel.grid.minor = element_blank(), #Remove minor gridmarks
+      strip.background = element_blank(), #Remove facet label background
+      strip.text.x = element_text(face = "bold"), #Facet_grid x label bold
+      strip.text.y = element_blank(), #Remove facet_grid y label
+      axis.line.x = element_line(), axis.ticks.x = element_line(),
+      axis.line.y = element_line(), axis.ticks.y = element_line()
+    )
+}
 
 ##Function
 myApp <- function() {
@@ -422,6 +507,17 @@ myApp <- function() {
             width = 6, 
             collapsible = T,
             plotOutput("plot_matrix_labels", height = 600))
+      ),
+      fluidRow(
+        box(title = "Winrate Summary",
+            solidHeader = T,
+            width = 6, 
+            collapsible = T,
+            plotOutput("plot_wr", height = 600)),
+        box(title = "Occurrences vs Score", solidHeader = T,
+            width = 6, 
+            collapsible = T,
+            plotOutput("plot_oo", height = 600))
       ),
       fluidRow(
         box(title = "Raw Data",
@@ -470,8 +566,16 @@ myApp <- function() {
     output$plot_matrix_labels <- renderPlot({ 
       plot_matrix_labels
     })
+    
+    # O vs Score
+    output$plot_oo <- renderPlot({ 
+      plot_oo
+    })
+    
+    # Winrate
+    output$plot_wr <- renderPlot({ 
+      plot_wr
+    })
   }
   shinyApp(ui = ui, server = server)
 }
-
-
