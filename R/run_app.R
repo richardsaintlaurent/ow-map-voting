@@ -395,9 +395,9 @@ plot_oo <- {
     ggplot(., aes(x = (score), y = (O), label = map)) +
     scale_color_manual(values=tier_colors, name = 'Tier') +
     geom_line(stat='smooth', method='lm', size = 1.75, color = 'gray') +
-    geom_label_repel(label.size = NA, seed = 123, alpha = 0.75, label.padding=0.1, min.segment.length = 0) +
-    geom_point(size = 2, aes(color = tier)) +
-    scale_x_continuous(limits = c(-1,1), breaks = c(-1.00,-0.75,-0.50,-0.25,0.00,0.25,0.50,0.75,1.00)) +
+    geom_label_repel(label.size = NA, size = 4.25, seed = 123, alpha = 0.75, label.padding=0.1, min.segment.length = 0) +
+    geom_point(size = 3, aes(color = tier)) +
+    scale_x_continuous(limits = c(-1,1), breaks = c(-1.00,-0.75,-0.50,-0.25,0.00,0.25,0.50,0.75,1.00), expand = c(0.01,0)) +
     scale_y_continuous(limits = c(oo_min, oo_max), breaks = seq(oo_min, oo_max, 5)) +
     theme_minimal(base_size = 14) +
     labs(x = 'Score', y = 'Number of Occurrences') +
@@ -420,7 +420,7 @@ plot_oo <- {
 #winrate
 data_wr <- {
   mapvote %>%
-    dplyr::select(ID, map, MATCH) %>%
+    dplyr::select(ID, RESULT, MATCH) %>%
     unique() %>%
     mutate(
       MATCH = case_when(
@@ -432,7 +432,7 @@ data_wr <- {
       )
     ) %>%
     na.omit() %>%
-    ungroup() %>% group_by(map) %>%
+    ungroup() %>% group_by(RESULT) %>%
     summarize(
       WR = sum(MATCH)/n(),
       N = n()
@@ -442,12 +442,12 @@ data_wr <- {
 }
 plot_wr <- {
   data_wr %>%
-    merge(data_oo, by='map') %>%
+    merge(data_oo, by.x = 'RESULT', by.y='map') %>%
     mutate(
-      map = factor(map, levels = rev(data_wr$map)),
+      RESULT = factor(RESULT, levels = rev(data_wr$RESULT)),
       tier = factor(tier, levels = rev(c('S','A','B','C','D','E','F')))
     ) %>%
-    ggplot(., aes(x = WR, y = map, label = N, fill = tier)) +
+    ggplot(., aes(x = WR, y = RESULT, label = N, fill = tier)) +
     scale_fill_manual(values=tier_colors, name = 'Tier') +
     geom_bar(stat='identity') +
     geom_vline(xintercept=0.5, linetype = 'longdash', linewidth = 1.25, color = 'black', alpha = 0.5) +
