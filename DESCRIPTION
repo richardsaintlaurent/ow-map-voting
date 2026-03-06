@@ -22,4 +22,5 @@ Imports:
     paletteer,
     ggthemes,
     pkgload,
-    ggrepel
+    ggrepel,
+    shinydashboardPlus
